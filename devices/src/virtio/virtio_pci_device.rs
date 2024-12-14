@@ -475,6 +475,7 @@ impl VirtioPciDevice {
             msix_num,
             msi_device_tube,
             PciId::new(VIRTIO_PCI_VENDOR_ID, pci_device_id).into(),
+            device.pci_address(),
             device.debug_label(),
         )));
 
@@ -699,6 +700,10 @@ impl VirtioPciDevice {
         self.pci_address
     }
 
+    fn update_msix_pci_addr(&self, pci_addr: Option<PciAddress>) {
+        self.msix_config.lock().update_pci_address(pci_addr);
+    }
+
     #[cfg(target_arch = "x86_64")]
     fn handle_pm_status_change(&mut self, status: &PmStatusChange) {
         if let Some(interrupt) = self.interrupt.as_mut() {
@@ -733,6 +738,7 @@ impl PciDevice for VirtioPciDevice {
                 self.pci_address = resources.allocate_pci(0, self.debug_label());
             }
         }
+        self.update_msix_pci_addr(self.pci_address);
         self.pci_address.ok_or(PciDeviceError::PciAllocationFailed)
     }
 

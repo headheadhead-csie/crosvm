@@ -29,6 +29,8 @@ use crate::pci::pci_configuration::PciCapConfigWriteResult;
 use crate::pci::PciCapability;
 use crate::pci::PciCapabilityID;
 
+use super::PciAddress;
+
 const MAX_MSIX_VECTORS_PER_DEVICE: u16 = 2048;
 pub const MSIX_TABLE_ENTRIES_MODULO: u64 = 16;
 pub const MSIX_PBA_ENTRIES_MODULO: u64 = 8;
@@ -66,6 +68,7 @@ pub struct MsixConfig {
     msi_device_socket: Tube,
     msix_num: u16,
     pci_id: u32,
+    pci_addr: Option<PciAddress>,
     device_name: String,
 }
 
@@ -121,7 +124,7 @@ pub enum MsixStatus {
 impl PciCapConfigWriteResult for MsixStatus {}
 
 impl MsixConfig {
-    pub fn new(msix_vectors: u16, vm_socket: Tube, pci_id: u32, device_name: String) -> Self {
+    pub fn new(msix_vectors: u16, vm_socket: Tube, pci_id: u32, pci_addr: Option<PciAddress>, device_name: String) -> Self {
         assert!(msix_vectors <= MAX_MSIX_VECTORS_PER_DEVICE);
 
         let mut table_entries: Vec<MsixTableEntry> = Vec::new();
@@ -146,6 +149,7 @@ impl MsixConfig {
             msi_device_socket: vm_socket,
             msix_num: msix_vectors,
             pci_id,
+            pci_addr,
             device_name,
         }
     }
@@ -179,6 +183,12 @@ impl MsixConfig {
     /// if 1, the function is permitted to use MSI-X to request service.
     pub fn enabled(&self) -> bool {
         self.enabled
+    }
+
+    /// The assignment of pci_addr happens after device creation.
+    /// Call this funciton to update correct pci_addr.
+    pub fn update_pci_address(&mut self, pci_addr: Option<PciAddress>) {
+        self.pci_addr = pci_addr;
     }
 
     /// Read the MSI-X Capability Structure.
@@ -361,11 +371,13 @@ impl MsixConfig {
             return Ok(());
         }
 
+        let pci_addr: u32 = self.pci_addr.expect("The config should have pci address").to_u32();
         self.msi_device_socket
             .send(&VmIrqRequest::AddMsiRoute {
                 gsi,
                 msi_address,
                 msi_data,
+                pci_addr,
             })
             .map_err(MsixError::AddMsiRouteSend)?;
         if let VmIrqResponse::Err(e) = self
@@ -852,6 +864,7 @@ mod tests {
                 gsi,
                 msi_address,
                 msi_data,
+                ..
             } => MsiRouteDetails {
                 gsi,
                 msi_address,
@@ -881,7 +894,9 @@ mod tests {
         let (irqchip_tube, msix_config_tube) = Tube::pair().unwrap();
         let (_unused, unused_config_tube) = Tube::pair().unwrap();
 
-        let mut cfg = MsixConfig::new(2, unused_config_tube, 0, "test_device".to_owned());
+        let mut cfg = MsixConfig::new(2, unused_config_tube, 0, Some(PciAddress {
+            bus: 0, dev: 0, func: 0,
+        }), "test_device".to_owned());
 
         // Set up two MSI-X vectors (0 and 1).
         // Data is 0xdVEC_NUM. Address is 0xaVEC_NUM.
@@ -928,7 +943,9 @@ mod tests {
             irqchip_tube
         });
 
-        let mut restored_cfg = MsixConfig::new(10, msix_config_tube, 10, "some_device".to_owned());
+        let mut restored_cfg = MsixConfig::new(10, msix_config_tube, 10, Some(PciAddress {
+            bus: 0, dev: 0, func: 0
+        }), "some_device".to_owned());
         restored_cfg.restore(snapshot).unwrap();
         irqchip_fake.join().unwrap();
 
@@ -942,7 +959,9 @@ mod tests {
     fn verify_msix_restore_warm_smoke() {
         let (irqchip_tube, msix_config_tube) = Tube::pair().unwrap();
 
-        let mut cfg = MsixConfig::new(2, msix_config_tube, 0, "test_device".to_owned());
+        let mut cfg = MsixConfig::new(2, msix_config_tube, 0, Some(PciAddress {
+            bus: 0, dev: 0, func: 0,
+        }), "test_device".to_owned());
 
         // Set up two MSI-X vectors (0 and 1).
         // Data is 0xdVEC_NUM. Address is 0xaVEC_NUM.

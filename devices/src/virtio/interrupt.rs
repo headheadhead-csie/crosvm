@@ -284,6 +284,9 @@ impl Interrupt {
             msix_vectors,
             unused_config_tube,
             0,
+            Some(PciAddress {
+                bus: 0, dev: 0, func:0,
+            }),
             "test_device".to_owned(),
         );
 

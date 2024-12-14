@@ -45,11 +45,13 @@ pub struct KvmKernelIrqChip {
 // These constants indicate the address space used by the ARM vGIC.
 const AARCH64_GIC_DIST_SIZE: u64 = 0x10000;
 const AARCH64_GIC_CPUI_SIZE: u64 = 0x20000;
+const AARCH64_GIC_ITS_SIZE: u64 = 0x20000;
 
 // These constants indicate the placement of the GIC registers in the physical
 // address space.
 const AARCH64_GIC_DIST_BASE: u64 = 0x40000000 - AARCH64_GIC_DIST_SIZE;
 const AARCH64_GIC_CPUI_BASE: u64 = AARCH64_GIC_DIST_BASE - AARCH64_GIC_CPUI_SIZE;
+const AARCH64_GIC_ITS_BASE: u64 = AARCH64_GIC_CPUI_BASE - AARCH64_GIC_ITS_SIZE;
 const AARCH64_GIC_REDIST_SIZE: u64 = 0x20000;
 
 // This is the minimum number of SPI interrupts aligned to 32 + 32 for the
@@ -63,10 +65,12 @@ impl KvmKernelIrqChip {
     pub fn new(vm: KvmVm, num_vcpus: usize) -> Result<KvmKernelIrqChip> {
         let cpu_if_addr: u64 = AARCH64_GIC_CPUI_BASE;
         let dist_if_addr: u64 = AARCH64_GIC_DIST_BASE;
-        let redist_addr: u64 = dist_if_addr - (AARCH64_GIC_REDIST_SIZE * num_vcpus as u64);
+        let redist_addr: u64 = AARCH64_GIC_ITS_BASE - (AARCH64_GIC_REDIST_SIZE * num_vcpus as u64);
+        let its_addr: u64 = AARCH64_GIC_ITS_BASE;
         let raw_cpu_if_addr = &cpu_if_addr as *const u64;
         let raw_dist_if_addr = &dist_if_addr as *const u64;
         let raw_redist_addr = &redist_addr as *const u64;
+        let raw_its_addr = &its_addr as *const u64;
 
         let cpu_if_attr = kvm_device_attr {
             group: KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -130,6 +134,47 @@ impl KvmKernelIrqChip {
         // SAFETY:
         // Safe because we allocated the struct that's being passed in
         let ret = unsafe { ioctl_with_ref(&vgic, KVM_SET_DEVICE_ATTR, &nr_irqs_attr) };
+        if ret != 0 {
+            return errno_result();
+        }
+
+        let its = vm.create_device(DeviceKind::ArmVgicITS)?;
+
+        let its_attr = kvm_device_attr {
+            group: KVM_DEV_ARM_VGIC_GRP_CTRL,
+            attr: KVM_DEV_ARM_VGIC_CTRL_INIT as u64,
+            addr: 0 as u64,
+            flags: 0,
+        };
+        // SAFETY:
+        // Safe because we allocated the struct that's being passed in
+        let ret = unsafe { ioctl_with_ref(&its, KVM_SET_DEVICE_ATTR, &its_attr) };
+        if ret != 0 {
+            return errno_result();
+        }
+
+        let its_attr = kvm_device_attr {
+            group: KVM_DEV_ARM_VGIC_GRP_ADDR,
+            attr: KVM_VGIC_ITS_ADDR_TYPE as u64,
+            addr: raw_its_addr as u64,
+            flags: 0,
+        };
+        // SAFETY:
+        // Safe because we allocated the struct that's being passed in
+        let ret = unsafe { ioctl_with_ref(&its, KVM_SET_DEVICE_ATTR, &its_attr) };
+        if ret != 0 {
+            return errno_result();
+        }
+
+        let reset_attr = kvm_device_attr {
+            group: KVM_DEV_ARM_VGIC_GRP_CTRL,
+            attr: KVM_DEV_ARM_ITS_CTRL_RESET as u64,
+            addr: 0,
+            flags: 0,
+        };
+        // SAFETY:
+        // Safe because we allocated the struct that's being passed in
+        let ret = unsafe { ioctl_with_ref(&its, KVM_SET_DEVICE_ATTR, &reset_attr) };
         if ret != 0 {
             return errno_result();
         }

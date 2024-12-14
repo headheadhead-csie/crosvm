@@ -82,6 +82,7 @@ impl PciBridge {
             false,
             msi_device_tube,
             (PCI_VENDOR_ID_INTEL as u32) | (device_id as u32) << 16,
+            device.lock().preferred_address(),
             device.lock().debug_label(),
         )));
 

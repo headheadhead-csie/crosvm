@@ -20,6 +20,7 @@ use crate::pci::pci_configuration::PciCapConfig;
 use crate::pci::pci_configuration::PciCapConfigWriteResult;
 use crate::pci::PciCapability;
 use crate::pci::PciCapabilityID;
+use crate::pci::PciAddress;
 
 // MSI registers
 pub const PCI_MSI_NEXT_POINTER: u32 = 0x1; // Next cap pointer
@@ -55,6 +56,7 @@ pub struct MsiConfig {
     irqfd: Option<Event>,
     gsi: Option<u32>,
     device_id: u32,
+    pci_addr: Option<PciAddress>,
     device_name: String,
 }
 
@@ -64,6 +66,7 @@ impl MsiConfig {
         mask_cap: bool,
         vm_socket_irq: Tube,
         device_id: u32,
+        pci_addr: Option<PciAddress>,
         device_name: String,
     ) -> Self {
         let mut ctrl: u16 = 0;
@@ -83,6 +86,7 @@ impl MsiConfig {
             irqfd: None,
             gsi: None,
             device_id,
+            pci_addr,
             device_name,
         }
     }
@@ -181,6 +185,7 @@ impl MsiConfig {
             gsi,
             msi_address: self.address,
             msi_data: self.data.into(),
+            pci_addr: self.pci_addr.expect("The device should have pci addr").to_u32(),
         }) {
             error!("failed to send AddMsiRoute request at {:?}", e);
             return;

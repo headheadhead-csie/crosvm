@@ -1197,15 +1197,18 @@ impl From<&IrqRoute> for kvm_irq_routing_entry {
                 },
                 ..Default::default()
             },
-            IrqSource::Msi { address, data } => kvm_irq_routing_entry {
+            IrqSource::Msi { address, data, pci_addr } => kvm_irq_routing_entry {
                 gsi: item.gsi,
                 type_: KVM_IRQ_ROUTING_MSI,
+                flags: KVM_MSI_VALID_DEVID,
                 u: kvm_irq_routing_entry__bindgen_ty_1 {
                     msi: kvm_irq_routing_msi {
                         address_lo: *address as u32,
                         address_hi: (*address >> 32) as u32,
                         data: *data,
-                        ..Default::default()
+                        __bindgen_anon_1: kvm_irq_routing_msi__bindgen_ty_1 {
+                            devid: *pci_addr,
+                        },
                     },
                 },
                 ..Default::default()

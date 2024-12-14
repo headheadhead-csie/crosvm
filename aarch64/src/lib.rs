@@ -102,6 +102,10 @@ const AARCH64_CMDLINE_MAX_SIZE: usize = 2048;
 // These constants indicate the address space used by the ARM vGIC.
 const AARCH64_GIC_DIST_SIZE: u64 = 0x10000;
 const AARCH64_GIC_CPUI_SIZE: u64 = 0x20000;
+const AARCH64_GIC_ITS_CONTROL_SIZE: u64 = 0x10000;
+const AARCH64_GIC_ITS_TRANS_SIZE: u64 = 0x10000;
+const AARCH64_GIC_ITS_SIZE: u64 = AARCH64_GIC_ITS_CONTROL_SIZE +
+    AARCH64_GIC_ITS_TRANS_SIZE;
 
 // This indicates the start of DRAM inside the physical address space.
 const AARCH64_PHYS_MEM_START: u64 = 0x80000000;
@@ -119,6 +123,7 @@ const AARCH64_PVTIME_SIZE: u64 = 64;
 // address space.
 const AARCH64_GIC_DIST_BASE: u64 = 0x40000000 - AARCH64_GIC_DIST_SIZE;
 const AARCH64_GIC_CPUI_BASE: u64 = AARCH64_GIC_DIST_BASE - AARCH64_GIC_CPUI_SIZE;
+const AARCH64_GIC_ITS_BASE: u64 = AARCH64_GIC_CPUI_BASE - AARCH64_GIC_ITS_SIZE;
 const AARCH64_GIC_REDIST_SIZE: u64 = 0x20000;
 
 // PSR (Processor State Register) bits

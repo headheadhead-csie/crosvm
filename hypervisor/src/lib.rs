@@ -504,6 +504,8 @@ pub enum DeviceKind {
     /// ARM virtual general interrupt controller v3
     #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
     ArmVgicV3,
+    #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+    ArmVgicITS,
     /// RiscV AIA in-kernel emulation
     #[cfg(target_arch = "riscv64")]
     RiscvAia,
@@ -525,7 +527,7 @@ pub enum IrqSourceChip {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IrqSource {
     Irqchip { chip: IrqSourceChip, pin: u32 },
-    Msi { address: u64, data: u32 },
+    Msi { address: u64, data: u32, pci_addr: u32 },
 }
 
 /// A single route for an IRQ.

@@ -30,6 +30,7 @@ fn set_gsi_routing() {
         source: IrqSource::Msi {
             address: 0xf000000,
             data: 0xa0,
+            pci_addr: 0,
         },
     }])
     .unwrap();
@@ -46,6 +47,7 @@ fn set_gsi_routing() {
             source: IrqSource::Msi {
                 address: 0xf000000,
                 data: 0xa0,
+                pci_addr: 0,
             },
         },
     ])

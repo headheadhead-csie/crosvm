@@ -1051,6 +1051,7 @@ pub enum VmIrqRequest {
         gsi: u32,
         msi_address: u64,
         msi_data: u32,
+        pci_addr: u32,
     },
     // unregister_irqfs() and release gsi
     ReleaseOneIrq {
@@ -1126,12 +1127,14 @@ impl VmIrqRequest {
                 gsi,
                 msi_address,
                 msi_data,
+                pci_addr,
             } => {
                 let route = IrqRoute {
                     gsi,
                     source: IrqSource::Msi {
                         address: msi_address,
                         data: msi_data,
+                        pci_addr,
                     },
                 };
                 match set_up_irq(IrqSetup::Route(route)) {

@@ -173,6 +173,7 @@ impl VfioMsiCap {
         msi_cap_start: u32,
         vm_socket_irq: Tube,
         device_id: u32,
+        pci_address: Option<PciAddress>,
         device_name: String,
     ) -> Self {
         let msi_ctl: u16 = config.read_config(msi_cap_start + PCI_MSI_FLAGS);
@@ -180,7 +181,7 @@ impl VfioMsiCap {
         let mask_cap = (msi_ctl & PCI_MSI_FLAGS_MASKBIT) != 0;
 
         VfioMsiCap {
-            config: MsiConfig::new(is_64bit, mask_cap, vm_socket_irq, device_id, device_name),
+            config: MsiConfig::new(is_64bit, mask_cap, vm_socket_irq, device_id, pci_address, device_name),
             offset: msi_cap_start,
         }
     }
@@ -236,6 +237,7 @@ impl VfioMsixCap {
         msix_cap_start: u32,
         vm_socket_irq: Tube,
         pci_id: u32,
+        pci_address: Option<PciAddress>,
         device_name: String,
     ) -> Self {
         let msix_ctl: u16 = config.read_config(msix_cap_start + PCI_MSIX_FLAGS);
@@ -263,7 +265,7 @@ impl VfioMsixCap {
             msix_interrupt_evt.push(Event::new().expect("failed to create msix interrupt"));
         }
         VfioMsixCap {
-            config: MsixConfig::new(table_size as u16, vm_socket_irq, pci_id, device_name),
+            config: MsixConfig::new(table_size as u16, vm_socket_irq, pci_id, pci_address, device_name),
             offset: msix_cap_start,
             table_size: table_size as u16,
             table_pci_bar,
@@ -751,6 +753,7 @@ impl VfioPciDevice {
                         cap_next,
                         msi_socket,
                         pci_id.into(),
+                        Some(preferred_address),
                         dev.device_name().to_string(),
                     ));
                 }
@@ -761,6 +764,7 @@ impl VfioPciDevice {
                         cap_next,
                         msix_socket,
                         pci_id.into(),
+                        Some(preferred_address),
                         dev.device_name().to_string(),
                     ))));
                 }

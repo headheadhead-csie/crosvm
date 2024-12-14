@@ -38,6 +38,8 @@ use crate::AARCH64_GIC_CPUI_BASE;
 use crate::AARCH64_GIC_CPUI_SIZE;
 use crate::AARCH64_GIC_DIST_BASE;
 use crate::AARCH64_GIC_DIST_SIZE;
+use crate::AARCH64_GIC_ITS_BASE;
+use crate::AARCH64_GIC_ITS_SIZE;
 use crate::AARCH64_GIC_REDIST_SIZE;
 use crate::AARCH64_PMU_IRQ;
 use crate::AARCH64_PROTECTED_VM_FW_START;
@@ -57,6 +59,7 @@ use crate::AARCH64_VMWDT_IRQ;
 // these.
 const PHANDLE_GIC: u32 = 1;
 const PHANDLE_RESTRICTED_DMA_POOL: u32 = 2;
+const PHANDLE_MSI: u32 = 0x8003;
 
 // CPUs are assigned phandles starting with this number.
 const PHANDLE_CPU0: u32 = 0x100;
@@ -203,7 +206,7 @@ fn create_gic_node(fdt: &mut Fdt, is_gicv3: bool, num_cpus: u64) -> Result<()> {
     let intc_node = fdt.root_mut().subnode_mut("intc")?;
     if is_gicv3 {
         intc_node.set_prop("compatible", "arm,gic-v3")?;
-        gic_reg_prop[2] = AARCH64_GIC_DIST_BASE - (AARCH64_GIC_REDIST_SIZE * num_cpus);
+        gic_reg_prop[2] = AARCH64_GIC_ITS_BASE - (AARCH64_GIC_REDIST_SIZE * num_cpus);
         gic_reg_prop[3] = AARCH64_GIC_REDIST_SIZE * num_cpus;
     } else {
         intc_node.set_prop("compatible", "arm,cortex-a15-gic")?;
@@ -212,11 +215,22 @@ fn create_gic_node(fdt: &mut Fdt, is_gicv3: bool, num_cpus: u64) -> Result<()> {
     }
     intc_node.set_prop("#interrupt-cells", GIC_FDT_IRQ_NUM_CELLS)?;
     intc_node.set_prop("interrupt-controller", ())?;
+    intc_node.set_prop("ranges", ())?;
     intc_node.set_prop("reg", &gic_reg_prop)?;
     intc_node.set_prop("phandle", PHANDLE_GIC)?;
     intc_node.set_prop("#address-cells", 2u32)?;
     intc_node.set_prop("#size-cells", 2u32)?;
+
+    let its_reg_prop = [AARCH64_GIC_ITS_BASE, AARCH64_GIC_ITS_SIZE];
+
+    let its_node = intc_node.subnode_mut("its")?;
+    its_node.set_prop("compatible", "arm,gic-v3-its")?;
+    its_node.set_prop("msi-controller", ())?;
+    its_node.set_prop("reg", &its_reg_prop)?;
+    its_node.set_prop("phandle", PHANDLE_MSI)?;
+
     add_symbols_entry(fdt, "intc", "/intc")?;
+    add_symbols_entry(fdt, "its", "/intc/its")?;
     Ok(())
 }
 
@@ -537,6 +551,8 @@ fn create_pci_nodes(
     pci_node.set_prop("interrupt-map", interrupts)?;
     pci_node.set_prop("interrupt-map-mask", masks)?;
     pci_node.set_prop("dma-coherent", ())?;
+    pci_node.set_prop("msi-parent", PHANDLE_MSI)?;
+    pci_node.set_prop("linux,pci-domain", 0 as u32)?;
     if let Some(dma_pool_phandle) = dma_pool_phandle {
         pci_node.set_prop("memory-region", dma_pool_phandle)?;
     }
